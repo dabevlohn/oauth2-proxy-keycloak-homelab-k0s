@@ -1,0 +1,132 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: oauth-proxy
+  name: oauth-proxy
+  namespace: keycloak
+spec:
+  type: ClusterIP
+  selector:
+    app: oauth-proxy
+  ports:
+    - name: http-oauthproxy
+      port: 4180
+      protocol: TCP
+      targetPort: 4180
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: oauth-proxy
+  name: oauth-proxy
+  namespace: keycloak
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: "oauth-proxy"
+  template:
+    metadata:
+      labels:
+        app: oauth-proxy
+    spec:
+      volumes:
+        - name: oauth2-proxy-config
+          configMap:
+            name: oauth2-proxy-config
+      containers:
+        - name: oauth-proxy
+          image: "quay.io/oauth2-proxy/oauth2-proxy:latest"
+          imagePullPolicy: Always
+          args:
+            - --provider=keycloak-oidc
+            - --email-domain=*
+            - --oidc-issuer-url=http://auth.bar.local/realms/master
+            - --ssl-upstream-insecure-skip-verify
+            - --ssl-insecure-skip-verify
+            - --redirect-url=http://foo.bar.local/oauth2/callback
+            - --upstream=file:///dev/null
+            - --http-address=0.0.0.0:4180
+            - --pass-access-token=true
+            - --pass-authorization-header=true
+            - --cookie-csrf-per-request=true
+            - --cookie-csrf-expire=5m
+            - --cookie-refresh=5m
+            - --set-xauthrequest=true
+            - --set-authorization-header=false
+            - --skip-auth-preflight=true
+            - --cookie-samesite=lax
+            - --cookie-secure=false
+            - --reverse-proxy=true
+            - --session-store-type=redis
+            - --redis-connection-url=redis://redis-service.keycloak.svc.cluster.local:6379
+            #- --session-store-type=cookie
+          env:
+            - name: OAUTH2_PROXY_CLIENT_ID
+              value: oauth2-proxy
+            - name: OAUTH2_PROXY_CLIENT_SECRET
+              value: ONf6O4ucr5trzB0qPvPfzq5n4y3bRzFb
+            - name: OAUTH2_PROXY_COOKIE_SECRET
+              value: ZzBkN000Wm0pQkVkKUhzMk5YPntQRUw_ME1oMTZZTy0=
+          ports:
+            - containerPort: 4180
+              protocol: TCP
+          # volumeMounts:
+          #   - name: oauth2-proxy-config
+          #     mountPath: /etc/oauth2-proxy.cfg
+          #     subPath: oauth2-proxy.cfg
+          # args:
+          #   - --config=/etc/oauth2-proxy.cfg
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: oauth2-proxy
+  namespace: keycloak
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: foo.bar.local
+      http:
+        paths:
+          - backend:
+              service:
+                name: oauth-proxy
+                port:
+                  number: 4180
+            path: /oauth2
+            pathType: Prefix
+---
+# apiVersion: v1
+# data:
+#   oauth2-proxy.cfg: |-
+#     # Provider config
+#     provider="keycloak-oidc"
+#     provider_display_name="Keycloak"
+#     #login_url="http://auth.bar.local/realms/master/protocol/openid-connect/auth"
+#     #redeem_url="http://auth.bar.local/realms/master/protocol/openid-connect/token"
+#     #validate_url="http://auth.bar.local/realms/master/protocol/openid-connect/userinfo"
+#     #profile_url="http://auth.bar.local/realms/master/protocol/openid-connect/userinfo"
+#     ssl_insecure_skip_verify=true
+#     # Client config
+#     client_id="oauth2-proxy"
+#     client_secret="ONf6O4ucr5trzB0qPvPfzq5n4y3bRzFb"
+#     cookie_secret="ZzBkN000Wm0pQkVkKUhzMk5YPntQRUw_ME1oMTZZTy0="
+#     cookie_secure="false"
+#     # Upstream config
+#     http_address="0.0.0.0:4180"
+#     upstreams="file:///dev/null"
+#     email_domains=["*"]
+#     oidc_issuer_url="http://auth.bar.local/realms/master"
+#     cookie_domains=["foo.bar.local"]
+#     scope="openid"
+#     whitelist_domains=[".foo.bar.local:*"]
+#     # Redis session store config
+#     session_store_type="redis"
+#     redis_connection_url="redis://redis-service.oauth2-proxy.svc.cluster.local:6379"
+# kind: ConfigMap
+# metadata:
+#   name: oauth2-proxy-config
+#   namespace: keycloak

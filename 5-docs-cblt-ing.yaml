@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: web
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: docs-cblt
+  namespace: web
+spec:
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+      - name: cblt
+        image: c8n.io/dabevlohn/cbltsibsoft:v0.1.1
+        ports:
+        - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: docs-cblt-service
+  namespace: web
+spec:
+  selector:
+    app: web
+  ports:
+    - protocol: TCP
+      port: 5000
+      targetPort: 8082
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    nginx.ingress.kubernetes.io/auth-signin: http://$host/oauth2/start?rd=$escaped_request_uri
+    nginx.ingress.kubernetes.io/auth-url: http://$host/oauth2/auth
+    nginx.ingress.kubernetes.io/proxy-buffer-size: 512k
+  name: docs-cblt-ingress
+  namespace: web
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: docs.ds.ecpk-dev.sibintek.run
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: docs-cblt-service
+            port:
+              number: 5000

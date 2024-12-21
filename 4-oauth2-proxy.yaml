@@ -46,7 +46,7 @@ spec:
             - --oidc-issuer-url=http://auth.bar.local/realms/master
             - --ssl-upstream-insecure-skip-verify
             - --ssl-insecure-skip-verify
-            - --redirect-url=http://foo.bar.local/oauth2/callback
+            - --redirect-url=http://docs.ds.ecpk-dev.sibintek.run/oauth2/callback
             - --upstream=file:///dev/null
             - --http-address=0.0.0.0:4180
             - --pass-access-token=true
@@ -88,7 +88,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - host: foo.bar.local
+    - host: docs.ds.ecpk-dev.sibintek.run
       http:
         paths:
           - backend:

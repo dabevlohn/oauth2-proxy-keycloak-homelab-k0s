@@ -39,7 +39,6 @@ spec:
       containers:
         - name: oauth-proxy
           image: "quay.io/oauth2-proxy/oauth2-proxy:latest"
-          imagePullPolicy: Always
           args:
             - --provider=keycloak-oidc
             - --email-domain=*
@@ -57,6 +56,8 @@ spec:
             - --set-xauthrequest=true
             - --set-authorization-header=false
             - --skip-auth-preflight=true
+            - --insecure-oidc-skip-issuer-verification=true
+            - --insecure-oidc-skip-nonce=true
             - --cookie-samesite=lax
             - --cookie-secure=false
             - --reverse-proxy=true
